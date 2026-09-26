@@ -13,7 +13,7 @@ class EventDetector:
         event_threshold: float = 0.2,
         max_nans: float = 0.2,
         min_peakness: float = 0.6,
-        filter_type: Union[str, int] = 1,
+        filter_type: Union[str, int] = 2,
         fparam: float = 0.995,
         bfi: float = 0.8,
         verbose: bool = False,

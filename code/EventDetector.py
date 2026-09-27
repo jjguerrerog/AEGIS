@@ -14,7 +14,7 @@ class EventDetector:
         max_nans: float = 0.2,
         min_peakness: float = 0.6,
         filter_type: Union[str, int] = 2,
-        fparam: float = 0.995,
+        alpha: float = 0.995,
         bfi: float = 0.8,
         verbose: bool = False,
     ) -> None:
@@ -27,7 +27,7 @@ class EventDetector:
             max_nans: max fraction of missing data allowed in an event
             min_peakness: (peak - start) / peak must exceed this
             filter_type: 1=Eckhardt, 2=Nathan, 3=Chapman
-            fparam: filter parameter (alpha or equivalent)
+            alpha: filter parameter, ranging from 0 to 1
             bfi: baseflow index for Eckhardt filter
             verbose: logging
         """
@@ -36,7 +36,7 @@ class EventDetector:
         self.max_nans = max_nans
         self.min_peakness = min_peakness
         self.filter_type = filter_type
-        self.fparam = fparam
+        self.alpha = alpha
         self.bfi = bfi
         self.verbose = verbose
 
@@ -151,7 +151,7 @@ class EventDetector:
         """
         
         baseflow = np.zeros_like(q)
-        alpha = self.fparam
+        alpha = self.alpha
         bfi = self.bfi
 
         if not (0.0 < alpha < 1.0):
@@ -183,7 +183,7 @@ class EventDetector:
 
         """
         runoff = np.zeros(q.size)
-        a = self.fparam
+        a = self.alpha
 
         for c, (q1, q2) in enumerate(zip(q[:-1], q[1:]), start=1):
             runoff[c] = a * runoff[c - 1] + ((1 + a) / 2.) * (q2 - q1)
@@ -200,7 +200,7 @@ class EventDetector:
         Digital filter proposed by chapman and maxwell (1996)
         """
         q = np.asarray(q, dtype=float)
-        a: float = self.fparam
+        a: float = self.alpha
         b: NDArray[np.floating] = np.zeros_like(q)
         coef_prev: float = a / (2. - a)
         coef_curr: float = (1. - a) / (2. - a)

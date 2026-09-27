@@ -13,7 +13,7 @@ class EventDetector:
         event_threshold: float = 0.2,
         max_nans: float = 0.2,
         min_peakness: float = 0.6,
-        filter_type: Union[str, int] = 2,
+        filter_type: Union[str, int] = 1,
         alpha: float = 0.995,
         bfi: float = 0.8,
         verbose: bool = False,
@@ -26,8 +26,12 @@ class EventDetector:
             event_threshold: minimum relative peak height
             max_nans: max fraction of missing data allowed in an event
             min_peakness: (peak - start) / peak must exceed this
-            filter_type: 1=Eckhardt, 2=Nathan, 3=Chapman
-            alpha: filter parameter, ranging from 0 to 1
+            filter_type: 1=Nathan (default), 2=Eckhardt, 3=Chapman
+            alpha: filter parameter, ranging from 0 to 1. Literature-recommended
+                values differ by filter: Eckhardt=0.98, Nathan-McMahon=0.8,
+                Chapman-Maxwell=0.8. The class default (0.995) is currently
+                shared across all three, not filter-specific -- see R3-C8
+                output-sensitivity analysis before relying on it for Nathan.
             bfi: baseflow index for Eckhardt filter
             verbose: logging
         """
@@ -95,14 +99,14 @@ class EventDetector:
         Route to the specific filter implementation.
         """
         q = series.values
-        if self.filter_type in ('Eckhardt', 1):
-            if self.verbose:
-                print("--[Filter] Applying Eckhardt (2005)...")
-            runoff, baseflow = self._eckhardt2005(q)
-        elif self.filter_type in ('Nathan', 2):
+        if self.filter_type in ('Nathan', 1):
             if self.verbose:
                 print("--[Filter] Applying Nathan & McMahon (1990)...")
             runoff, baseflow = self._nathan1990(q)
+        elif self.filter_type in ('Eckhardt', 2):
+            if self.verbose:
+                print("--[Filter] Applying Eckhardt (2005)...")
+            runoff, baseflow = self._eckhardt2005(q)
         elif self.filter_type in ('Chapman', 3):
             if self.verbose:
                 print("--[Filter] Applying Chapman & Maxwell (1996)...")

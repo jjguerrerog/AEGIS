@@ -10,7 +10,7 @@ class EventDetector:
     def __init__(
         self,
         runoff_threshold: float = 0.01,
-        event_threshold: float = 0.2,
+        event_threshold: float = 0.5,
         max_nans: float = 0.2,
         min_peakness: float = 0.6,
         filter_type: Union[str, int] = 1,
@@ -21,17 +21,37 @@ class EventDetector:
         """
         Initialize the detector with filtering and event criteria.
 
+        The default thresholds (runoff_threshold=0.01, event_threshold=0.5)
+        assume flow normalized as in the manuscript (divided by the mean of the
+        annual maxima; see the helper in code/preproc.py). This class does not
+        normalize; thresholds must be consistent with whatever normalization
+        the user applies.
+
         Args:
             runoff_threshold: below this (in filtered runoff) is zeroed out
-            event_threshold: minimum relative peak height
+            event_threshold: an event window is kept only if its maximum flow,
+                in the units of the input, is strictly greater than this value
+                (a magnitude screen, unlike min_peakness, which screens shape)
             max_nans: max fraction of missing data allowed in an event
             min_peakness: (peak - start) / peak must exceed this
-            filter_type: 1=Nathan (default), 2=Eckhardt, 3=Chapman
-            alpha: filter parameter, ranging from 0 to 1. Literature-recommended
-                values differ by filter: Eckhardt=0.98, Nathan-McMahon=0.8,
-                Chapman-Maxwell=0.8. The class default (0.995) is currently
-                shared across all three, not filter-specific -- see R3-C8
-                output-sensitivity analysis before relying on it for Nathan.
+            filter_type: 1=Nathan (default; Lyne-Hollick, applied by Nathan &
+                McMahon, 1990), 2=Eckhardt, 3=Chapman
+            alpha: filter parameter, ranging from 0 to 1. It is applied once per
+                time step, so its value depends on the time step. The study used
+                hourly data with alpha=0.995, not calibrated per gauge; this
+                default is shared by the three filters, not filter-specific.
+                Literature values, all for daily data unless noted:
+                Lyne-Hollick (Nathan & McMahon, 1990) tested 0.9, 0.925 and
+                0.95 and adopted 0.925; Szilagyi (2004) 0.953-0.999.
+                Eckhardt (2005) 0.955-0.980 (called the recession constant
+                there; time step not stated in the paper). Chapman-Maxwell
+                (Chapman, 1999, Table IV, Eq. 8) 0.949-0.993.
+                Approximate conversion between time steps:
+                alpha_hourly ~ alpha_daily ** (1 / 24) (exact for an exponential
+                recession, approximate for these filters). The sensitivity of
+                the results to alpha was tested over a wide range for all three
+                filters on 195 US gauges (see the manuscript and supplementary
+                material).
             bfi: baseflow index for Eckhardt filter
             verbose: logging
         """
@@ -101,7 +121,7 @@ class EventDetector:
         q = series.values
         if self.filter_type in ('Nathan', 1):
             if self.verbose:
-                print("--[Filter] Applying Nathan & McMahon (1990)...")
+                print("--[Filter] Applying Lyne-Hollick (applied by Nathan & McMahon, 1990)...")
             runoff, baseflow = self._nathan1990(q)
         elif self.filter_type in ('Eckhardt', 2):
             if self.verbose:
@@ -180,7 +200,7 @@ class EventDetector:
 
     def _nathan1990(self, q: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         """
-        One parameter digital filter of Nathan and McMahon (1990)
+        One parameter digital filter: Lyne-Hollick (applied by Nathan & McMahon, 1990)
         Args:
             q: array of discharge values
         Returns:
